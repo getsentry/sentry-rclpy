@@ -8,6 +8,9 @@
   <maintainer email="alexander.webb@sentry.io">Alexander Alderman Webb</maintainer>
   <license>MIT</license>
 
+  <url type="repository">https://github.com/getsentry/sentry-rclpy</url>
+  <url type="bugtracker">https://github.com/getsentry/sentry-rclpy/issues</url>
+
   <exec_depend>rclpy</exec_depend>
 
   <export>
