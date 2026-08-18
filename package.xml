@@ -12,7 +12,7 @@
   <url type="bugtracker">https://github.com/getsentry/sentry-rclpy/issues</url>
 
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>python3-sentry-sdk</exec_depend>
+  <exec_depend version_gte="2.66.0">python3-sentry-sdk</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

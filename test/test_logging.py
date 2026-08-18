@@ -13,7 +13,11 @@ def test_sentry_logs_warning(sentry_init, capture_items):
     """
     The rclpy logger should create 'warn' sentry logs by default.
     """
-    sentry_init(integrations=[RCLPyIntegration()])
+    sentry_init(
+        integrations=[RCLPyIntegration()],
+        traces_sample_rate=1.0,
+        trace_lifecycle="stream",
+    )
     items = capture_items("log")
 
     logger = rclpy.logging.get_logger("test-logger")
@@ -33,7 +37,11 @@ def test_sentry_logs_debug(sentry_init, capture_items):
     """
     The rclpy logger should not create 'debug' sentry logs by default.
     """
-    sentry_init(integrations=[RCLPyIntegration()])
+    sentry_init(
+        integrations=[RCLPyIntegration()],
+        traces_sample_rate=1.0,
+        trace_lifecycle="stream",
+    )
     items = capture_items("log")
 
     logger = rclpy.logging.get_logger("test-logger")
@@ -47,7 +55,11 @@ def test_logger_with_all_attributes(sentry_init, capture_items):
     """
     The rclpy logger should be able to log all attributes.
     """
-    sentry_init(integrations=[RCLPyIntegration()])
+    sentry_init(
+        integrations=[RCLPyIntegration()],
+        traces_sample_rate=1.0,
+        trace_lifecycle="stream",
+    )
     items = capture_items("log")
 
     logger = rclpy.logging.get_logger("test-logger")

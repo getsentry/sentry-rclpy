@@ -2,9 +2,14 @@ import time
 from typing import TYPE_CHECKING
 
 import sentry_sdk
+from sentry_sdk import traces
+from sentry_sdk.consts import SPANDATA
 from sentry_sdk.integrations import DidNotEnable, Integration
+from sentry_sdk.utils import qualname_from_function
 
 try:
+    import rclpy.executors
+    from rclpy.executors import await_or_execute
     from rclpy.impl.logging_severity import LoggingSeverity
     from rclpy.impl.rcutils_logger import RcutilsLogger
 except ImportError:
@@ -55,10 +60,12 @@ def _log_level_to_otel(level, mapping):
 
 class RCLPyIntegration(Integration):
     identifier = "rclpy"
+    origin = "auto.rclpy"
 
     @staticmethod
     def setup_once():
         _patch_rcutils_logger_log()
+        _patch_await_or_execute()
 
 
 def _patch_rcutils_logger_log():
@@ -102,3 +109,21 @@ def _patch_rcutils_logger_log():
         return logged
 
     RcutilsLogger.log = _sentry_log  # type: ignore[assignment]
+
+
+def _patch_await_or_execute():
+    original_await_or_execute = await_or_execute
+
+    async def _sentry_await_or_execute(callback, *args):
+        qualname = qualname_from_function(callback)
+
+        with traces.start_span(
+            name=f"Executing {qualname}",
+            attributes={
+                "sentry.origin": RCLPyIntegration.origin,
+                SPANDATA.CODE_FUNCTION_NAME: qualname,
+            },
+        ):
+            return await original_await_or_execute(callback, *args)
+
+    rclpy.executors.await_or_execute = _sentry_await_or_execute  # type: ignore[assignment]
