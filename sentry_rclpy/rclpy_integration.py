@@ -3,7 +3,7 @@ import time
 from typing import TYPE_CHECKING
 
 import sentry_sdk
-from sentry_sdk import traces
+from sentry_sdk import metrics, traces
 from sentry_sdk.consts import SPANDATA
 from sentry_sdk.integrations import DidNotEnable, Integration
 from sentry_sdk.utils import (
@@ -15,7 +15,7 @@ from sentry_sdk.utils import (
 
 try:
     import rclpy.executors
-    from rclpy.executors import await_or_execute
+    from rclpy.executors import Executor, await_or_execute
     from rclpy.impl.logging_severity import LoggingSeverity
     from rclpy.impl.rcutils_logger import RcutilsLogger
 except ImportError:
@@ -72,6 +72,7 @@ class RCLPyIntegration(Integration):
     def setup_once():
         _patch_rcutils_logger_log()
         _patch_await_or_execute()
+        _patch_executor_depth()
 
 
 def _patch_rcutils_logger_log():
@@ -144,3 +145,39 @@ def _patch_await_or_execute():
                 reraise(*exc_info)
 
     rclpy.executors.await_or_execute = _sentry_await_or_execute  # type: ignore[assignment]
+
+
+def _patch_executor_depth():
+    original_wait_for_ready_callbacks = Executor.wait_for_ready_callbacks
+
+    def _sentry_wait_for_ready_callbacks(self, *args, **kwargs):
+        result = original_wait_for_ready_callbacks(self, *args, **kwargs)
+
+        attributes = {"executor": f"{type(self).__qualname__}-{id(self):#x}"}
+
+        if hasattr(self, "_pending_tasks"):
+            metrics.gauge(
+                "executor.pending_tasks",
+                len(self._pending_tasks),
+                attributes=attributes,
+            )
+
+        if hasattr(self, "_ready_tasks"):
+            metrics.gauge(
+                "executor.ready_tasks", len(self._ready_tasks), attributes=attributes
+            )
+
+        if not hasattr(self, "_work_tracker") or not hasattr(
+            self._work_tracker, "_num_work_executing"
+        ):
+            return result
+
+        metrics.gauge(
+            "executor.executing",
+            self._work_tracker._num_work_executing,
+            attributes=attributes,
+        )
+
+        return result
+
+    Executor.wait_for_ready_callbacks = _sentry_wait_for_ready_callbacks  # type: ignore[assignment]
