@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import TYPE_CHECKING
 
@@ -5,7 +6,12 @@ import sentry_sdk
 from sentry_sdk import traces
 from sentry_sdk.consts import SPANDATA
 from sentry_sdk.integrations import DidNotEnable, Integration
-from sentry_sdk.utils import qualname_from_function
+from sentry_sdk.utils import (
+    capture_internal_exceptions,
+    event_from_exception,
+    qualname_from_function,
+    reraise,
+)
 
 try:
     import rclpy.executors
@@ -124,6 +130,17 @@ def _patch_await_or_execute():
                 SPANDATA.CODE_FUNCTION_NAME: qualname,
             },
         ):
-            return await original_await_or_execute(callback, *args)
+            try:
+                return await original_await_or_execute(callback, *args)
+            except Exception:
+                exc_info = sys.exc_info()
+                with capture_internal_exceptions():
+                    event, hint = event_from_exception(
+                        sys.exc_info(),
+                        client_options=sentry_sdk.get_client().options,
+                        mechanism={"type": "rclpy", "handled": False},
+                    )
+                    sentry_sdk.capture_event(event, hint=hint)
+                reraise(*exc_info)
 
     rclpy.executors.await_or_execute = _sentry_await_or_execute  # type: ignore[assignment]
