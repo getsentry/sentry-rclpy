@@ -22,9 +22,10 @@ except ImportError:
     raise DidNotEnable("RCLPy is not installed")
 
 if TYPE_CHECKING:
-    from typing import Optional, Union, Unpack
+    from typing import Optional, Union, Unpack  # type: ignore[attr-defined]
 
     from rclpy.impl.rcutils_logger import LoggingFilterArgs
+    from sentry_sdk._types import Attributes
 
 # Map rclpy LoggingSeverity to corresponding OTel severity numbers
 _SEVERITY_TO_OTEL_SEVERITY = {
@@ -122,14 +123,17 @@ def _patch_await_or_execute():
     original_await_or_execute = await_or_execute
 
     async def _sentry_await_or_execute(callback, *args):
+        attributes: "Attributes" = {
+            "sentry.origin": RCLPyIntegration.origin,
+        }
+
         qualname = qualname_from_function(callback)
+        if qualname is not None:
+            attributes[SPANDATA.CODE_FUNCTION_NAME] = qualname
 
         with traces.start_span(
-            name=f"Executing {qualname}",
-            attributes={
-                "sentry.origin": RCLPyIntegration.origin,
-                SPANDATA.CODE_FUNCTION_NAME: qualname,
-            },
+            name=f"Executing {qualname if qualname else 'callback'}",
+            attributes=attributes,
         ):
             try:
                 return await original_await_or_execute(callback, *args)
