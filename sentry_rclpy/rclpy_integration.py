@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from functools import wraps
@@ -18,7 +19,7 @@ try:
     import rclpy.executors
     from rclpy.executors import Executor, await_or_execute
     from rclpy.impl.logging_severity import LoggingSeverity
-    from rclpy.impl.rcutils_logger import RcutilsLogger
+    from rclpy.impl.rcutils_logger import RcutilsLogger, _internal_callers
 except ImportError:
     raise DidNotEnable("RCLPy is not installed")
 
@@ -78,6 +79,9 @@ class RCLPyIntegration(Integration):
 
 
 def _patch_rcutils_logger_log():
+    # Register this file as an internal caller so rclpy's _find_caller skips _sentry_log
+    _internal_callers.append(os.path.realpath(__file__))
+
     original_log = RcutilsLogger.log
 
     @wraps(original_log)
