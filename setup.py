@@ -11,6 +11,11 @@ setup(
         ("share/" + PACKAGE_NAME, ["package.xml"]),
     ],
     install_requires=["setuptools"],
+    entry_points={
+        "console_scripts": [
+            "telemetry_demo = scripts.telemetry_demo:main",
+        ],
+    },
     zip_safe=True,
     author="Alexander Alderman Webb",
     author_email="alexander.webb@sentry.io",
