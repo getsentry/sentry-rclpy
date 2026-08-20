@@ -1,5 +1,6 @@
 import sys
 import time
+from functools import wraps
 from typing import TYPE_CHECKING
 
 import sentry_sdk
@@ -79,6 +80,7 @@ class RCLPyIntegration(Integration):
 def _patch_rcutils_logger_log():
     original_log = RcutilsLogger.log
 
+    @wraps(original_log)
     def _sentry_log(
         self: "RcutilsLogger",
         message: str,
@@ -122,6 +124,7 @@ def _patch_rcutils_logger_log():
 def _patch_await_or_execute():
     original_await_or_execute = await_or_execute
 
+    @wraps(original_await_or_execute)
     async def _sentry_await_or_execute(callback, *args):
         attributes: "Attributes" = {
             "sentry.origin": RCLPyIntegration.origin,
@@ -154,6 +157,7 @@ def _patch_await_or_execute():
 def _patch_executor_depth():
     original_wait_for_ready_callbacks = Executor.wait_for_ready_callbacks
 
+    @wraps(original_wait_for_ready_callbacks)
     def _sentry_wait_for_ready_callbacks(self, *args, **kwargs):
         result = original_wait_for_ready_callbacks(self, *args, **kwargs)
 
